@@ -518,7 +518,7 @@ class ApiBuilderComponent extends Component
         $modelName = $this->config('modelName');
         $model = $this->Controller->{$modelName};
 
-        $entity = $this->findSingle($id);
+        $entity = $this->findSingle($id, ['toArray' => false]);
 
         $entity = $model->patchEntity($entity, $controller->request->data);
 
@@ -588,7 +588,7 @@ class ApiBuilderComponent extends Component
         $modelName = $this->config('modelName');
         $model = $this->Controller->{$modelName};
 
-        $entity = $this->findSingle($id);
+        $entity = $this->findSingle($id, ['toArray' => false]);
 
         if ($model->delete($entity)) {
             $message = __($this->config('delete.messageOnSuccess'), Inflector::singularize($modelName));
