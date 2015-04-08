@@ -52,11 +52,13 @@ class ApiBuilderComponent extends Component
         ],
         'add' => [
             'messageOnSuccess' => 'The {0} has been saved.',
-            'messageOnError' => 'The {0} could not be saved.'
+            'messageOnError' => 'The {0} could not be saved.',
+            'beforeSave' => false,
         ],
         'edit' => [
             'messageOnSuccess' => 'The {0} has been upated.',
-            'messageOnError' => 'The {0} could not be updated.'
+            'messageOnError' => 'The {0} could not be updated.',
+            'beforeSave' => false,
         ],
         'delete' => [
             'messageOnSuccess' => 'The {0} has been deleted.',
@@ -227,8 +229,7 @@ class ApiBuilderComponent extends Component
         $methodName = '__' . lcfirst($action) . 'Action';
 
         if (method_exists($this, $methodName)) {
-            $this->$methodName($options);
-            return true;
+            return $this->$methodName($options);
         } else {
             return false;
         }
@@ -413,6 +414,20 @@ class ApiBuilderComponent extends Component
 
         $entity = $model->newEntity($controller->request->data);
 
+        if ($this->config('add.beforeSave')) {
+            $_event = new \Cake\Event\Event('Controller.Api.beforeSave', $this, [
+                'entity' => $entity,
+            ]);
+
+            $method = $this->config('add.beforeSave');
+
+            $event = $controller->$method($_event);
+
+            if (!is_null($event->result['entity'])) {
+                $entity = $event->result['entity'];
+            }
+        }
+
         if ($model->save($entity)) {
             $data = $model->get($entity->get('id'));
             $message = __($this->config('add.messageOnSuccess'), Inflector::singularize($modelName));
@@ -466,6 +481,20 @@ class ApiBuilderComponent extends Component
         $entity = $this->findSingle($id);
 
         $entity = $model->patchEntity($entity, $controller->request->data);
+
+        if ($this->config('edit.beforeSave')) {
+            $_event = new \Cake\Event\Event('Controller.Api.beforeSave', $this, [
+                'entity' => $entity,
+            ]);
+
+            $method = $this->config('edit.beforeSave');
+
+            $event = $controller->$method($_event);
+
+            if (!is_null($event->result['entity'])) {
+                $entity = $event->result['entity'];
+            }
+        }
 
         if ($model->save($entity)) {
             $data = $model->get($entity->get('id'));
