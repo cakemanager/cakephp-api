@@ -47,8 +47,10 @@ class ApiBuilderComponent extends Component
         'actions' => [
         ],
         'index' => [
+            'beforeFind' => false,
         ],
         'view' => [
+            'beforeFind' => false,
         ],
         'add' => [
             'messageOnSuccess' => 'The {0} has been saved.',
@@ -347,6 +349,24 @@ class ApiBuilderComponent extends Component
     {
         $controller = $this->Controller;
 
+        $query = $this->findAll(['toArray' => false]);
+
+        if ($this->config('index.beforeFind')) {
+            $controller->eventManager()->on('Controller.Api.beforeFind', [$controller, $this->config('index.beforeFind')]);
+
+            $event = new \Cake\Event\Event('Controller.Api.beforeFind', $this, [
+                'query' => $query,
+            ]);
+
+            $eventManager = $controller->eventManager();
+
+            $eventManager->dispatch($event);
+
+            if (!is_null($event->result['query'])) {
+                $query = $event->result['query'];
+            }
+        }
+
         // set url variable
         if (!$this->_viewVarExists('url')) {
             $controller->set('url', $controller->request->here());
@@ -359,7 +379,7 @@ class ApiBuilderComponent extends Component
 
         // set data variable
         if (!$this->_viewVarExists('data')) {
-            $controller->set('data', $this->findAll());
+            $controller->set('data', $query->toArray());
         }
 
         // serialize
@@ -379,6 +399,24 @@ class ApiBuilderComponent extends Component
 
         $id = $controller->passedArgs[0];
 
+        $query = $this->findSingle($id, ['toArray' => false]);
+
+        if ($this->config('view.beforeFind')) {
+            $controller->eventManager()->on('Controller.Api.beforeFind', [$controller, $this->config('view.beforeFind')]);
+
+            $event = new \Cake\Event\Event('Controller.Api.beforeFind', $this, [
+                'query' => $query,
+            ]);
+
+            $eventManager = $controller->eventManager();
+
+            $eventManager->dispatch($event);
+
+            if (!is_null($event->result['query'])) {
+                $query = $event->result['query'];
+            }
+        }
+
         // set url variable
         if (!$this->_viewVarExists('url')) {
             $controller->set('url', $controller->request->here());
@@ -391,7 +429,7 @@ class ApiBuilderComponent extends Component
 
         // set data variable
         if (!$this->_viewVarExists('data')) {
-            $controller->set('data', $this->findSingle($id));
+            $controller->set('data', $query->toArray());
         }
 
         // serialize
@@ -415,13 +453,15 @@ class ApiBuilderComponent extends Component
         $entity = $model->newEntity($controller->request->data);
 
         if ($this->config('add.beforeSave')) {
-            $_event = new \Cake\Event\Event('Controller.Api.beforeSave', $this, [
+            $controller->eventManager()->on('Controller.Api.beforeSave', [$controller, $this->config('add.beforeSave')]);
+
+            $event = new \Cake\Event\Event('Controller.Api.beforeSave', $this, [
                 'entity' => $entity,
             ]);
 
-            $method = $this->config('add.beforeSave');
+            $eventManager = $controller->eventManager();
 
-            $event = $controller->$method($_event);
+            $eventManager->dispatch($event);
 
             if (!is_null($event->result['entity'])) {
                 $entity = $event->result['entity'];
@@ -483,13 +523,15 @@ class ApiBuilderComponent extends Component
         $entity = $model->patchEntity($entity, $controller->request->data);
 
         if ($this->config('edit.beforeSave')) {
-            $_event = new \Cake\Event\Event('Controller.Api.beforeSave', $this, [
+            $controller->eventManager()->on('Controller.Api.beforeSave', [$controller, $this->config('edit.beforeSave')]);
+
+            $event = new \Cake\Event\Event('Controller.Api.beforeSave', $this, [
                 'entity' => $entity,
             ]);
 
-            $method = $this->config('edit.beforeSave');
+            $eventManager = $controller->eventManager();
 
-            $event = $controller->$method($_event);
+            $eventManager->dispatch($event);
 
             if (!is_null($event->result['entity'])) {
                 $entity = $event->result['entity'];
