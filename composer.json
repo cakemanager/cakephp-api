@@ -12,7 +12,7 @@
     "require": {
         "php": ">=5.4",
         "cakephp/cakephp": "~3.0",
-        "cakemanager/cakephp-utils": "1.0.*@dev"
+        "cakemanager/cakephp-utils": "dev-master"
     },
     "require-dev": {
         "phpunit/phpunit": "*"
