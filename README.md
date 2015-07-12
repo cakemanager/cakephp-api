@@ -1,5 +1,7 @@
 # Api plugin for CakePHP
 
+[![Join the chat at https://gitter.im/cakemanager/cakephp-api](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/cakemanager/cakephp-api?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 This plugin allows you to easily create flexible restful api's on the fly.
 
 > Note: This is a non-stable plugin for CakePHP 3.0 at this time. It is currently under development and should be 
