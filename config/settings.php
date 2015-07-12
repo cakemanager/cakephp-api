@@ -12,22 +12,21 @@
  * @since         1.0
  * @license       http://www.opensource.org/licenses/mit-license.php MIT License
  */
-use Cake\Routing\Router;
 
-Router::plugin('Api', ['path' => '/'], function ($routes) {
-    $routes->prefix('api', function ($routes) {
-        $routes->extensions(['json']);
+use Settings\Core\Setting;
+use Cake\Core\Configure;
 
-        $routes->resources('Users', [
-            'map' => [
-                'token' => [
-                    'action' => 'token',
-                    'method' => 'POST'
-                ]
-            ]
-        ]);
+Configure::write('Settings.Prefixes.Api', 'API');
 
-        $routes->fallbacks('InflectedRoute');
-    });
-    $routes->fallbacks('InflectedRoute');
-});
+
+Setting::register('Api.JWT', 0, [
+    'type' => 'select',
+    'options' => [
+        1 => 'On',
+        0 => 'Off'
+    ]
+]);
+
+return [
+    'Api.JWT' => Setting::read('Api.JWT'),
+];

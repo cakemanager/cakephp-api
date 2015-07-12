@@ -14,7 +14,13 @@
  */
 namespace Api\Controller\Component;
 
+use Api\Controller\Actions\AddTrait;
+use Api\Controller\Actions\DeleteTrait;
+use Api\Controller\Actions\EditTrait;
+use Api\Controller\Actions\IndexTrait;
+use Api\Controller\Actions\ViewTrait;
 use Cake\Controller\Component;
+use Cake\Core\Configure;
 use Cake\Core\Exception\Exception;
 use Cake\Utility\Inflector;
 
@@ -23,6 +29,13 @@ use Cake\Utility\Inflector;
  */
 class ApiBuilderComponent extends Component
 {
+
+    use IndexTrait;
+    use ViewTrait;
+    use AddTrait;
+    use EditTrait;
+    use DeleteTrait;
+
     /**
      * Default configuration.
      *
@@ -46,26 +59,6 @@ class ApiBuilderComponent extends Component
         ],
         'actions' => [
         ],
-        'index' => [
-            'beforeFind' => false,
-        ],
-        'view' => [
-            'beforeFind' => false,
-        ],
-        'add' => [
-            'messageOnSuccess' => 'The {0} has been saved.',
-            'messageOnError' => 'The {0} could not be saved.',
-            'beforeSave' => false,
-        ],
-        'edit' => [
-            'messageOnSuccess' => 'The {0} has been upated.',
-            'messageOnError' => 'The {0} could not be updated.',
-            'beforeSave' => false,
-        ],
-        'delete' => [
-            'messageOnSuccess' => 'The {0} has been deleted.',
-            'messageOnError' => 'The {0} could not be deleted.',
-        ]
     ];
 
     /**
@@ -110,13 +103,84 @@ class ApiBuilderComponent extends Component
         if (is_null($this->config('modelName'))) {
             $this->config('modelName', $this->Controller->name);
         }
+
+        if (Configure::read('Api.JWT')) {
+            if ($this->Controller->Auth) {
+                $this->Controller->Auth->config('authenticate', [
+                    'ADmad/JwtAuth.Jwt' => [
+                        'parameter' => '_token',
+                        'userModel' => 'Users.Users',
+                        'scope' => ['Users.active' => 1],
+                        'fields' => [
+                            'id' => 'id'
+                        ]
+                    ]
+                ]);
+            }
+        }
+
     }
+
+    /**
+     * execute
+     *
+     * Executes the request.
+     *
+     * ### Example:
+     *
+     * // running your own action:
+     *      public function customAction() {
+     *          $this->set('data', $data);
+     *          return $this->ApiBuilder->execute();
+     *      }
+     *
+     * // running any pre-defined crud-actions:
+     *      public function add() {
+     *          return $this->ApiBuilder->execute('add');
+     *      }
+     *
+     * @param string|void $action Action to execute.
+     * @param array $options Options.
+     * @return bool
+     */
+    public function execute($action = null, $options = [])
+    {
+        if ($action) {
+            $methodName = '__' . lcfirst($action) . 'Action';
+
+            if (method_exists($this, $methodName)) {
+                $this->$methodName($options);
+            } else {
+                return false;
+            }
+        }
+
+        $controller = $this->Controller;
+
+        // set url variable
+        if (!$this->_viewVarExists('url')) {
+            $controller->set('url', $controller->request->here());
+        }
+
+        // set code variable
+        if (!$this->_viewVarExists('code')) {
+            $controller->set('code', $controller->response->statusCode());
+        }
+
+        // serialize
+        $controller->set('_serialize', $this->config('_serialize'));
+    }
+
 
     /**
      * addParentResource
      *
      * Method to add a resource who's parent of the current one.
      * Registering this resource will affect the query.
+     *
+     * ### Example:
+     *
+     * $this->ApiBuilder->addparentResource('Articles', 'article_id');
      *
      * @param string $name Name of the resource.
      * @param string $variable Variable name of the resource (like `article_id`)
@@ -130,30 +194,30 @@ class ApiBuilderComponent extends Component
     /**
      * enable
      *
-     * Enables actions for api.
+     * Enables specific actions for api.
+     *
+     * ### Example:
+     * // single action
+     *      $this->ApiBuilder->enable('index');
+     *
+     * // multiple actions
+     *      $this->ApiBuilder->enable(['index', 'view']);
      *
      * @param string|array $actions The action/actions to enable.
      * @param array|null $options Options for the chosen action.
      * @return void
      */
-    public function enable($actions, $options = [])
+    public function enable($actions)
     {
         if (is_array($actions)) {
-            foreach ($actions as $action => $options) {
-                if (is_array($options)) {
-                    $this->enable($action, $options);
-                } else {
-                    $this->enable($options);
-                }
+            foreach ($actions as $action) {
+                $this->enable($action);
             }
             return;
         }
-
-        $action = $actions;
-
-        $this->config('actions.' . $action, true);
-
-        $this->config($action, $options);
+        $_actions = $this->config('actions');
+        $_actions[] = $actions;
+        $this->config('actions', $_actions);
     }
 
     /**
@@ -173,9 +237,13 @@ class ApiBuilderComponent extends Component
             return;
         }
 
-        $action = $actions;
-
-        $this->config('actions.' . $action, false);
+        $_actions = $this->config('actions');
+        foreach ($_actions as $key => $value) {
+            if ($value == $actions) {
+                unset($_actions[$key]);
+            }
+        }
+        $this->config('actions', $_actions, false);
     }
 
     /**
@@ -188,7 +256,11 @@ class ApiBuilderComponent extends Component
      */
     public function actionIsset($action)
     {
-        return (!is_null($this->config('actions.' . $action)) ? $this->config('actions.' . $action) : false);
+        $actions = $this->config('actions');
+        if (in_array($action, $actions)) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -198,8 +270,10 @@ class ApiBuilderComponent extends Component
      *
      * ### Example
      *
-     * `$this->ApiBuilder->serialize(['data1', 'data2']);
-     * `$this->ApiBuilder->serialize('data3');
+     * // single param
+     *      $this->ApiBuilder->serialize('data3');
+     * // multiple params
+     *      $this->ApiBuilder->serialize(['data1', 'data2']);
      *
      * This example will serialize `data1`, `data2`, `data3` if set.
      *
@@ -215,26 +289,6 @@ class ApiBuilderComponent extends Component
         $data = array_merge($_data, $data);
 
         $this->config('_serialize', $data, false);
-    }
-
-    /**
-     * executeAction
-     *
-     * Executes the requested action.
-     *
-     * @param string $action Action to execute.
-     * @param array $options Options to use and send.
-     * @return bool
-     */
-    public function executeAction($action, $options = [])
-    {
-        $methodName = '__' . lcfirst($action) . 'Action';
-
-        if (method_exists($this, $methodName)) {
-            return $this->$methodName($options);
-        } else {
-            return false;
-        }
     }
 
     /**
@@ -338,282 +392,4 @@ class ApiBuilderComponent extends Component
         return $query->firstOrFail();
     }
 
-    /**
-     * __indexAction
-     *
-     * Execute action for the index-action
-     *
-     * @return void
-     */
-    private function __indexAction()
-    {
-        $controller = $this->Controller;
-
-        $query = $this->findAll(['toArray' => false]);
-
-        if ($this->config('index.beforeFind')) {
-            $controller->eventManager()->on('Controller.Api.beforeFind', [$controller, $this->config('index.beforeFind')]);
-
-            $event = new \Cake\Event\Event('Controller.Api.beforeFind', $this, [
-                'query' => $query,
-            ]);
-
-            $eventManager = $controller->eventManager();
-
-            $eventManager->dispatch($event);
-
-            if (!is_null($event->result['query'])) {
-                $query = $event->result['query'];
-            }
-        }
-
-        // set url variable
-        if (!$this->_viewVarExists('url')) {
-            $controller->set('url', $controller->request->here());
-        }
-
-        // set code variable
-        if (!$this->_viewVarExists('code')) {
-            $controller->set('code', $controller->response->statusCode());
-        }
-
-        // set data variable
-        if (!$this->_viewVarExists('data')) {
-            $controller->set('data', $query->toArray());
-        }
-
-        // serialize
-        $controller->set('_serialize', $this->config('_serialize'));
-    }
-
-    /**
-     * __viewAction
-     *
-     * Execute action for the view-action
-     *
-     * @return void
-     */
-    private function __viewAction()
-    {
-        $controller = $this->Controller;
-
-        $id = $controller->passedArgs[0];
-
-        $query = $this->findSingle($id, ['toArray' => false]);
-
-        if ($this->config('view.beforeFind')) {
-            $controller->eventManager()->on('Controller.Api.beforeFind', [$controller, $this->config('view.beforeFind')]);
-
-            $event = new \Cake\Event\Event('Controller.Api.beforeFind', $this, [
-                'query' => $query,
-            ]);
-
-            $eventManager = $controller->eventManager();
-
-            $eventManager->dispatch($event);
-
-            if (!is_null($event->result['query'])) {
-                $query = $event->result['query'];
-            }
-        }
-
-        // set url variable
-        if (!$this->_viewVarExists('url')) {
-            $controller->set('url', $controller->request->here());
-        }
-
-        // set code variable
-        if (!$this->_viewVarExists('code')) {
-            $controller->set('code', $controller->response->statusCode());
-        }
-
-        // set data variable
-        if (!$this->_viewVarExists('data')) {
-            $controller->set('data', $query->toArray());
-        }
-
-        // serialize
-        $controller->set('_serialize', $this->config('_serialize'));
-    }
-
-    /**
-     * __addAction
-     *
-     * Execute action for the add-action
-     *
-     * @return void
-     */
-    private function __addAction()
-    {
-        $controller = $this->Controller;
-
-        $modelName = $this->config('modelName');
-        $model = $this->Controller->{$modelName};
-
-        $entity = $model->newEntity($controller->request->data);
-
-        if ($this->config('add.beforeSave')) {
-            $controller->eventManager()->on('Controller.Api.beforeSave', [$controller, $this->config('add.beforeSave')]);
-
-            $event = new \Cake\Event\Event('Controller.Api.beforeSave', $this, [
-                'entity' => $entity,
-            ]);
-
-            $eventManager = $controller->eventManager();
-
-            $eventManager->dispatch($event);
-
-            if (!is_null($event->result['entity'])) {
-                $entity = $event->result['entity'];
-            }
-        }
-
-        if ($model->save($entity)) {
-            $data = $model->get($entity->get('id'));
-            $message = __($this->config('add.messageOnSuccess'), Inflector::singularize($modelName));
-            $statusCode = 200;
-        } else {
-            $data = $entity->errors();
-            $message = __($this->config('add.messageOnError'), Inflector::singularize(lcfirst($modelName)));
-            $statusCode = 400;
-        }
-
-        // set message variable
-        if (!$this->_viewVarExists('message')) {
-            $controller->set('message', $message);
-        }
-
-        // set url variable
-        if (!$this->_viewVarExists('url')) {
-            $controller->set('url', $controller->request->here());
-        }
-
-        // set code variable
-        if (!$this->_viewVarExists('code')) {
-            $controller->set('code', $controller->response->statusCode($statusCode));
-        }
-
-        // set data variable
-        if (!$this->_viewVarExists('data')) {
-            $controller->set('data', $data);
-        }
-
-        // serialize
-        $controller->set('_serialize', $this->config('_serialize'));
-    }
-
-    /**
-     * __editAction
-     *
-     * Execute action for the add-action
-     *
-     * @return void
-     */
-    private function __editAction()
-    {
-        $controller = $this->Controller;
-
-        $id = $controller->passedArgs[0];
-
-        $modelName = $this->config('modelName');
-        $model = $this->Controller->{$modelName};
-
-        $entity = $this->findSingle($id, ['toArray' => false]);
-
-        $entity = $model->patchEntity($entity, $controller->request->data);
-
-        if ($this->config('edit.beforeSave')) {
-            $controller->eventManager()->on('Controller.Api.beforeSave', [$controller, $this->config('edit.beforeSave')]);
-
-            $event = new \Cake\Event\Event('Controller.Api.beforeSave', $this, [
-                'entity' => $entity,
-            ]);
-
-            $eventManager = $controller->eventManager();
-
-            $eventManager->dispatch($event);
-
-            if (!is_null($event->result['entity'])) {
-                $entity = $event->result['entity'];
-            }
-        }
-
-        if ($model->save($entity)) {
-            $data = $model->get($entity->get('id'));
-            $message = __($this->config('edit.messageOnSuccess'), Inflector::singularize($modelName));
-            $statusCode = 200;
-        } else {
-            $data = $entity->errors();
-            $message = __($this->config('edit.messageOnError'), Inflector::singularize(lcfirst($modelName)));
-            $statusCode = 400;
-        }
-
-        // set message variable
-        if (!$this->_viewVarExists('message')) {
-            $controller->set('message', $message);
-        }
-
-        // set url variable
-        if (!$this->_viewVarExists('url')) {
-            $controller->set('url', $controller->request->here());
-        }
-
-        // set code variable
-        if (!$this->_viewVarExists('code')) {
-            $controller->set('code', $controller->response->statusCode($statusCode));
-        }
-
-        // set data variable
-        if (!$this->_viewVarExists('data')) {
-            $controller->set('data', $data);
-        }
-
-        // serialize
-        $controller->set('_serialize', $this->config('_serialize'));
-    }
-
-    /**
-     * __deleteAction
-     *
-     * Execute action for the add-action
-     *
-     * @return void
-     */
-    private function __deleteAction()
-    {
-        $controller = $this->Controller;
-
-        $id = $controller->passedArgs[0];
-
-        $modelName = $this->config('modelName');
-        $model = $this->Controller->{$modelName};
-
-        $entity = $this->findSingle($id, ['toArray' => false]);
-
-        if ($model->delete($entity)) {
-            $message = __($this->config('delete.messageOnSuccess'), Inflector::singularize($modelName));
-            $statusCode = 200;
-        } else {
-            $message = __($this->config('delete.messageOnError'), Inflector::singularize(lcfirst($modelName)));
-            $statusCode = 400;
-        }
-
-        // set message variable
-        if (!$this->_viewVarExists('message')) {
-            $controller->set('message', $message);
-        }
-
-        // set url variable
-        if (!$this->_viewVarExists('url')) {
-            $controller->set('url', $controller->request->here());
-        }
-
-        // set code variable
-        if (!$this->_viewVarExists('code')) {
-            $controller->set('code', $controller->response->statusCode($statusCode));
-        }
-
-        // serialize
-        $controller->set('_serialize', $this->config('_serialize'));
-    }
 }

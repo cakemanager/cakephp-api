@@ -37,10 +37,10 @@ trait ApiControllerTrait
         }
         if (!$this->isAction($request->params['action'])) {
             throw new MissingActionException([
-            'controller' => $this->name . 'Controller',
-            'action' => $request->params['action'],
-            'prefix' => isset($request->params['prefix']) ? $request->params['prefix'] : '',
-            'plugin' => $request->params['plugin'],
+                'controller' => $this->name . 'Controller',
+                'action' => $request->params['action'],
+                'prefix' => isset($request->params['prefix']) ? $request->params['prefix'] : '',
+                'plugin' => $request->params['plugin'],
             ]);
         }
         $callable = [$this, $request->params['action']];
@@ -49,16 +49,16 @@ trait ApiControllerTrait
         }
 
         // Adding our own stuff to generate the action
-        $execute = $this->ApiBuilder->executeAction($request->params['action']);
+        $execute = $this->ApiBuilder->execute($request->params['action']);
         if ($execute !== false) {
             return $execute;
         }
 
         throw new MissingActionException([
-        'controller' => $this->name . 'Controller',
-        'action' => $request->params['action'],
-        'prefix' => isset($request->params['prefix']) ? $request->params['prefix'] : '',
-        'plugin' => $request->params['plugin'],
+            'controller' => $this->name . 'Controller',
+            'action' => $request->params['action'],
+            'prefix' => isset($request->params['prefix']) ? $request->params['prefix'] : '',
+            'plugin' => $request->params['plugin'],
         ]);
     }
 

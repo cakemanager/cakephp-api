@@ -1,31 +1,35 @@
 {
-    "name": "cakemanager/cakephp-api",
-    "description": "Api plugin for CakePHP 3.x",
-    "type": "cakephp-plugin",
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Bob Mulder",
-            "email": "bobmulder@outlook.com"
-        }
-    ],
-    "require": {
-        "php": ">=5.4",
-        "cakephp/cakephp": "~3.0",
-        "cakemanager/cakephp-utils": "dev-master"
-    },
-    "require-dev": {
-        "phpunit/phpunit": "*"
-    },
-    "autoload": {
-        "psr-4": {
-            "Api\\": "src"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Api\\Test\\": "tests",
-            "Cake\\Test\\": "./vendor/cakephp/cakephp/tests"
-        }
+  "name": "cakemanager/cakephp-api",
+  "description": "Api plugin for CakePHP 3.x",
+  "type": "cakephp-plugin",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Bob Mulder",
+      "email": "bobmulder@outlook.com"
     }
+  ],
+  "require": {
+    "php": ">=5.4",
+    "cakephp/cakephp": "~3.0",
+    "cakemanager/cakephp-utils": "dev-master",
+    "admad/cakephp-jwt-auth": "dev-master"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "*"
+  },
+  "suggest": {
+    "cakemanager/cakephp-settings": "Easy way to manage your settings via your database."
+  },
+  "autoload": {
+    "psr-4": {
+      "Api\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Api\\Test\\": "tests",
+      "Cake\\Test\\": "./vendor/cakephp/cakephp/tests"
+    }
+  }
 }
