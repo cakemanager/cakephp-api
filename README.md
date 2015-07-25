@@ -181,6 +181,18 @@ public function active() {
     return $this->ApiBuilder->execute();
 }
 ```
+
+Then map the action to your `config/routes.php`:
+```
+$routes->resources('Blogs', [
+	'map' => [
+		'active' => [
+			'action' => 'active',
+			'method' => 'GET'
+		]
+	]
+]);
+```
 Using this action will return all active blogs on `api.org/api/blogs/active.json`.
 
 
