@@ -392,4 +392,22 @@ class ApiBuilderComponent extends Component
         return $query->firstOrFail();
     }
 
+    /**
+     * getModel
+     *
+     * Returns the used model.
+     *
+     * @return Model
+     */
+    public function getModel()
+    {
+        $modelName = $this->config('modelName');
+        $model = \Cake\ORM\TableRegistry::get($modelName);
+
+        if ($model) {
+            return $model;
+        }
+        return false;
+    }
+
 }

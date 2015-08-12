@@ -31,8 +31,7 @@ trait EditTrait
 
         $id = $controller->passedArgs[0];
 
-        $modelName = $this->config('modelName');
-        $model = $this->Controller->{$modelName};
+        $model = $this->getModel();
 
         $entity = $this->findSingle($id, ['toArray' => false]);
 
@@ -56,17 +55,10 @@ trait EditTrait
 
         if ($model->save($entity)) {
             $data = $model->get($entity->get('id'));
-            $message = __($this->config('edit.messageOnSuccess'), Inflector::singularize($modelName));
             $statusCode = 200;
         } else {
             $data = $entity->errors();
-            $message = __($this->config('edit.messageOnError'), Inflector::singularize(lcfirst($modelName)));
             $statusCode = 400;
-        }
-
-        // set message variable
-        if (!$this->_viewVarExists('message')) {
-            $controller->set('message', $message);
         }
 
         // set data variable
