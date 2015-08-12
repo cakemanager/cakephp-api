@@ -30,6 +30,7 @@ class UsersController extends AppController
         }
 
         $this->set('data', [
+            'user' => $user,
             'token' => $token = \JWT::encode([
                 'id' => $user['id'],
                 'user' => $user,
@@ -37,6 +38,18 @@ class UsersController extends AppController
             ],
                 Security::salt())
         ]);
+
+        $this->ApiBuilder->execute();
+    }
+
+    public function me()
+    {
+        $user = $this->Auth->identify();
+        if (!$user) {
+            throw new UnauthorizedException('Invalid username or password');
+        }
+
+        $this->set('data', $user);
 
         $this->ApiBuilder->execute();
     }
