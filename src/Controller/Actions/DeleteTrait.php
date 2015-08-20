@@ -31,22 +31,35 @@ trait DeleteTrait
 
         $id = $controller->passedArgs[0];
 
-        $modelName = $this->config('modelName');
-        $model = $this->Controller->{$modelName};
+        $model = $this->getModel();
 
         $entity = $this->findSingle($id, ['toArray' => false]);
 
+        if ($this->config('delete.beforeDelete')) {
+            $controller->eventManager()->on('Controller.Api.beforeDelete', [$controller, $this->config('edit.beforeDelete')]);
+
+            $event = new \Cake\Event\Event('Controller.Api.beforeDelete', $this, [
+                'entity' => $entity,
+            ]);
+
+            $eventManager = $controller->eventManager();
+
+            $eventManager->dispatch($event);
+
+            if (!is_null($event->result['entity'])) {
+                $entity = $event->result['entity'];
+            }
+        }
+
         if ($model->delete($entity)) {
-            $message = __($this->config('delete.messageOnSuccess'), Inflector::singularize($modelName));
             $statusCode = 200;
         } else {
-            $message = __($this->config('delete.messageOnError'), Inflector::singularize(lcfirst($modelName)));
             $statusCode = 400;
         }
 
         // set message variable
-        if (!$this->_viewVarExists('message')) {
-            $controller->set('message', $message);
+        if (!$this->_viewVarExists('data')) {
+            $controller->set('data', $entity);
         }
     }
 
