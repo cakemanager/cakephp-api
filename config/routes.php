@@ -23,6 +23,10 @@ Router::plugin('Api', ['path' => '/'], function ($routes) {
                 'token' => [
                     'action' => 'token',
                     'method' => 'POST'
+                ],
+                'me' => [
+                    'action' => 'me',
+                    'method' => 'GET'
                 ]
             ]
         ]);
