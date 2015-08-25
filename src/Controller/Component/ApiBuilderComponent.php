@@ -105,7 +105,6 @@ class ApiBuilderComponent extends Component
         }
 
         if (Configure::read('Api.JWT')) {
-            debug('jwt');
             if ($this->Controller->Auth) {
                 $this->Controller->Auth->config('authenticate', [
                     'ADmad/JwtAuth.Jwt' => [
