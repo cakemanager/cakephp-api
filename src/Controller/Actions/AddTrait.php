@@ -51,10 +51,10 @@ trait AddTrait
 
         if ($model->save($entity)) {
             $data = $model->get($entity->get('id'));
-            $statusCode = 200;
+            $this->setStatusCode(200);
         } else {
             $data = $entity->errors();
-            $statusCode = 400;
+            $this->setStatusCode(400);
         }
 
         // set data variable

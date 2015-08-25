@@ -105,6 +105,7 @@ class ApiBuilderComponent extends Component
         }
 
         if (Configure::read('Api.JWT')) {
+            debug('jwt');
             if ($this->Controller->Auth) {
                 $this->Controller->Auth->config('authenticate', [
                     'ADmad/JwtAuth.Jwt' => [
@@ -261,6 +262,12 @@ class ApiBuilderComponent extends Component
             return true;
         }
         return false;
+    }
+
+    public function setStatusCode($code)
+    {
+        $controller = $this->Controller;
+        $controller->response->statusCode($code);
     }
 
     /**
