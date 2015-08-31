@@ -33,6 +33,7 @@ trait AddTrait
 
         $entity = $model->newEntity($controller->request->data);
 
+        // add.beforeSave event
         if ($this->config('add.beforeSave')) {
             $controller->eventManager()->on('Controller.Api.beforeSave', [$controller, $this->config('add.beforeSave')]);
 
@@ -60,6 +61,19 @@ trait AddTrait
         // set data variable
         if (!$this->_viewVarExists('data')) {
             $controller->set('data', $data);
+        }
+
+        // add.aftersave event
+        if ($this->config('add.afterSave')) {
+            $controller->eventManager()->on('Controller.Api.afterSave', [$controller, $this->config('add.afterSave')]);
+
+            $event = new \Cake\Event\Event('Controller.Api.afterSave', $this, [
+                'entity' => $entity,
+            ]);
+
+            $eventManager = $controller->eventManager();
+
+            $eventManager->dispatch($event);
         }
     }
 
