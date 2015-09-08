@@ -27,6 +27,10 @@ Setting::register('Api.JWT', 0, [
     ]
 ]);
 
+Setting::register('Api.OriginDomains', '*', [
+]);
+
 return [
     'Api.JWT' => Setting::read('Api.JWT'),
+    'Api.OriginDomains' => Setting::read('Api.OriginDomains'),
 ];

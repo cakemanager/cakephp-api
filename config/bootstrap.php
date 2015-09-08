@@ -15,13 +15,18 @@
 
 use Cake\Core\Configure;
 use Cake\Core\Plugin;
+use Cake\Routing\DispatcherFactory;
 
-Configure::write('API.JWT', false);
+Configure::write('Api.JWT', false);
+
+Configure::write('Api.OriginDomains', '*');
 
 if (Configure::read('Api.settings')) {
     Configure::load('Api.settings', 'default');
 }
 
-if (Configure::read('API.JWT')) {
+if (Configure::read('Api.JWT')) {
     Plugin::load('ADmad/JwtAuth', []);
 }
+
+DispatcherFactory::add('Api.ApiHeader', ['priority' => 1]);
