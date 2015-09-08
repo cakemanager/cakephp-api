@@ -97,7 +97,7 @@ class ApiBuilderComponent extends Component
         $this->Controller->loadComponent('RequestHandler');
 
         // accepts json
-        $this->Controller->request->accepts('application/json');
+        $this->Controller->RequestHandler->renderAs($this->Controller, 'json');
 
         // set the default modelName
         if (is_null($this->config('modelName'))) {
@@ -395,7 +395,7 @@ class ApiBuilderComponent extends Component
             return $query->firstOrFail()->toArray();
         }
 
-        return $query->firstOrFail();
+        return $query;
     }
 
     /**
