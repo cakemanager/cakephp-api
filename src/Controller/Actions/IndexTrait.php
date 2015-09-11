@@ -49,7 +49,7 @@ trait IndexTrait
 
         // set data variable
         if (!$this->_viewVarExists('data')) {
-            $controller->set('data', $query->first()->toArray());
+            $controller->set('data', $query->all()->toArray());
         }
     }
 
