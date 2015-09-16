@@ -33,7 +33,7 @@ trait DeleteTrait
 
         $model = $this->getModel();
 
-        $entity = $this->findSingle($id, ['toArray' => false]);
+        $entity = $this->findSingle($id, ['toArray' => false])->first();
 
         if ($this->config('delete.beforeDelete')) {
             $controller->eventManager()->on('Controller.Api.beforeDelete', [$controller, $this->config('edit.beforeDelete')]);

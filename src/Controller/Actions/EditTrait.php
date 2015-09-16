@@ -33,7 +33,7 @@ trait EditTrait
 
         $model = $this->getModel();
 
-        $entity = $this->findSingle($id, ['toArray' => false]);
+        $entity = $this->findSingle($id, ['toArray' => false])->first();
 
         $entity = $model->patchEntity($entity, $controller->request->data);
 
