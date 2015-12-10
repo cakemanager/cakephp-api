@@ -341,7 +341,7 @@ class ApiBuilderComponent extends Component
         if ($options['resources']) {
             foreach ($this->config('resources') as $resource => $field) {
                 $key = $modelName . '.' . $field;
-                $value = $this->Controller->request->params[$field];
+                $value = $this->Controller->request->param($field);
 
                 $query->where([$key => $value]);
             }

@@ -51,7 +51,7 @@ trait ViewTrait
 
         // set data variable
         if (!$this->_viewVarExists('data')) {
-            $controller->set('data', $query->first()->toArray());
+            $controller->set('data', $query->firstOrFail());
         }
     }
 
