@@ -16,12 +16,3 @@
 use Cake\Core\Configure;
 use Cake\Core\Plugin;
 
-Configure::write('API.JWT', false);
-
-if (Configure::read('Api.settings')) {
-    Configure::load('Api.settings', 'default');
-}
-
-if (Configure::read('API.JWT')) {
-    Plugin::load('ADmad/JwtAuth', []);
-}
