@@ -61,6 +61,12 @@ class BlogTransformer extends TransformerAbstract
 }
 ```
 
+The Transformer class can easily be created via the `cake bake` command:
+
+```
+$ bin\cake bake transformer Blog
+```
+
 Now set up your API by the following example:
 
 ```
