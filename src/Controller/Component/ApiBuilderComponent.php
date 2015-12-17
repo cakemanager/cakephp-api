@@ -14,14 +14,13 @@
  */
 namespace Api\Controller\Component;
 
-use Api\Controller\Actions\AddTrait;
-use Api\Controller\Actions\DeleteTrait;
-use Api\Controller\Actions\EditTrait;
-use Api\Controller\Actions\IndexTrait;
-use Api\Controller\Actions\ViewTrait;
 use Cake\Controller\Component;
+use Cake\Controller\ComponentRegistry;
+use Cake\Core\App;
 use Cake\Core\Configure;
 use Cake\Core\Exception\Exception;
+use Cake\Event\Event;
+use Cake\Network\Response;
 use Cake\Utility\Inflector;
 
 /**
@@ -30,390 +29,251 @@ use Cake\Utility\Inflector;
 class ApiBuilderComponent extends Component
 {
 
-    use IndexTrait;
-    use ViewTrait;
-    use AddTrait;
-    use EditTrait;
-    use DeleteTrait;
-
-    /**
-     * Default configuration.
-     *
-     * ### Options
-     *
-     * - `modelName` - the model to use from the controller (string)
-     * - `serialze` - the variables to serialize.
-     * - `index` - contains settings of the `index`-method
-     *
-     * @var array
-     */
-    protected $_defaultConfig = [
-        'modelName' => null,
-        '_serialize' => [
-            'message',
-            'url',
-            'code',
-            'data'
-        ],
-        'resources' => [
-        ],
-        'actions' => [
-        ],
-    ];
-
     /**
      * Controller
      *
      * @var \Cake\Controller\Controller
      */
-    protected $Controller = null;
+    protected $_controller;
 
     /**
-     * setController
+     * EventManager
      *
-     * Setter for the Controller param.
-     *
-     * @param Controller $controller Controller.
-     * @return void
+     * @var \Cake\Event\EventManager
      */
-    public function setController($controller)
+    protected $_eventManager;
+
+    /**
+     * Current action
+     *
+     * @var string
+     */
+    protected $_action;
+
+    /**
+     * Array of instances of actions.
+     *
+     * @var array
+     */
+    protected $_actions;
+
+    /**
+     * Default configuration
+     *
+     * Options:
+     * - `actions` - Actions that should be build.
+     *
+     * @var array
+     */
+    protected $_defaultConfig = [
+        'actions' => [],
+        'listeners' => []
+    ];
+
+    /**
+     * Constructor
+     *
+     */
+    public function __construct(ComponentRegistry $collection, $config = [])
     {
-        $this->Controller = $controller;
+        $this->_controller = $collection->getController();
+        $this->_controller->loadComponent('RequestHandler');
+
+        $this->_eventManager = $this->_controller->eventManager();
+
+        parent::__construct($collection, $config);
     }
 
     /**
-     * initialize
+     * beforeFilter event.
      *
-     * @param array $config Config.
+     * @param \Cake\Event\Event $event Event
      * @return void
      */
-    public function initialize(array $config)
+    public function beforeFilter($event)
     {
-        parent::initialize($config);
+        $this->_action = $this->_controller->request->action;
 
-        $this->setController($this->_registry->getController());
-
-        // adding request handler
-        $this->Controller->loadComponent('RequestHandler');
-
-        // accepts json
-        $this->Controller->RequestHandler->renderAs($this->Controller, 'json');
-
-        // set the default modelName
-        if (is_null($this->config('modelName'))) {
-            $this->config('modelName', $this->Controller->name);
+        if (!isset($this->_controller->dispatchComponents)) {
+            $this->_controller->dispatchComponents = [];
         }
+        $this->_controller->dispatchComponents['ApiBuilder'] = true;
 
-        if (Configure::read('Api.JWT')) {
-            if ($this->Controller->Auth) {
-                $this->Controller->Auth->config('authenticate', [
-                    'ADmad/JwtAuth.Jwt' => [
-                        'parameter' => '_token',
-                        'userModel' => 'Users.Users',
-                        'scope' => ['Users.active' => 1],
-                        'fields' => [
-                            'id' => 'id'
-                        ]
-                    ]
-                ]);
-            }
-        }
+//        $this->_loadListeners();
 
+//        $this->trigger('beforeFilter');
     }
 
     /**
-     * execute
+     * Check if an Api action has been mapped
      *
-     * Executes the request.
-     *
-     * ### Example:
-     *
-     * // running your own action:
-     *      public function customAction() {
-     *          $this->set('data', $data);
-     *          return $this->ApiBuilder->execute();
-     *      }
-     *
-     * // running any pre-defined crud-actions:
-     *      public function add() {
-     *          return $this->ApiBuilder->execute('add');
-     *      }
-     *
-     * @param string|void $action Action to execute.
-     * @param array $options Options.
+     * @param string $action If null, use the current action.
      * @return bool
      */
-    public function execute($action = null, $options = [])
+    public function isActionMapped($action = null)
     {
-        if ($action) {
-            $methodName = '__' . lcfirst($action) . 'Action';
-
-            if (method_exists($this, $methodName)) {
-                $this->$methodName($options);
-            } else {
-                return false;
-            }
+        if (!$action) {
+            $action = $this->_action;
         }
-
-        $controller = $this->Controller;
-
-        // set url variable
-        if (!$this->_viewVarExists('url')) {
-            $controller->set('url', $controller->request->here());
+        $action = Inflector::variable($action);
+        $actionConfig = $this->config('actions.' . $action);
+        if (!$actionConfig) {
+            return false;
         }
-
-        // set code variable
-        if (!$this->_viewVarExists('code')) {
-            $controller->set('code', $controller->response->statusCode());
-        }
-
-        // serialize
-        $controller->set('_serialize', $this->config('_serialize'));
+        return $this->action($action)->config('enabled');
     }
 
-
     /**
-     * addParentResource
+     * Get an ApiAction object by action the name.
      *
-     * Method to add a resource who's parent of the current one.
-     * Registering this resource will affect the query.
-     *
-     * ### Example:
-     *
-     * $this->ApiBuilder->addparentResource('Articles', 'article_id');
-     *
-     * @param string $name Name of the resource.
-     * @param string $variable Variable name of the resource (like `article_id`)
+     * @param string $name Action name.
      * @return void
      */
-    public function addParentResource($name, $variable)
+    public function action($name = null)
     {
-        $this->config('resources.' . $name, $variable);
+        if (!$name) {
+            $name = $this->_action;
+        }
+        $name = Inflector::variable($name);
+        return $this->_loadAction($name);
     }
 
     /**
-     * enable
+     * Enable one or multiple Api actions.
      *
-     * Enables specific actions for api.
-     *
-     * ### Example:
-     * // single action
-     *      $this->ApiBuilder->enable('index');
-     *
-     * // multiple actions
-     *      $this->ApiBuilder->enable(['index', 'view']);
-     *
-     * @param string|array $actions The action/actions to enable.
-     * @param array|null $options Options for the chosen action.
+     * @param string|array $actions Array of actions to enable, or string with the name of action to enable.
      * @return void
      */
     public function enable($actions)
     {
-        if (is_array($actions)) {
-            foreach ($actions as $action) {
-                $this->enable($action);
-            }
-            return;
+        foreach ((array)$actions as $action) {
+            $this->action($action)->enable();
         }
-        $_actions = $this->config('actions');
-        $_actions[] = $actions;
-        $this->config('actions', $_actions);
     }
 
     /**
-     * disable
+     * Disable one or multiple Api actions.
      *
-     * Disables actions for api.
-     *
-     * @param string|array $actions The action/actions to disable.
+     * @param string|array $actions Array of actions to disable, or string with the name of action to disable.
      * @return void
      */
     public function disable($actions)
     {
-        if (is_array($actions)) {
-            foreach ($actions as $action) {
-                $this->disable($action);
-            }
-            return;
+        foreach ((array)$actions as $action) {
+            $this->action($action)->disable();
+        }
+    }
+
+    public function enabled($action)
+    {
+        return true;
+    }
+
+    public function execute($action = null, $arguments = [])
+    {
+        $this->_action = $action ?: $this->_action;
+        $action = $this->_action;
+
+        if (!$arguments) {
+            $arguments = $this->_controller->request->params['pass'];
         }
 
-        $_actions = $this->config('actions');
-        foreach ($_actions as $key => $value) {
-            if ($value == $actions) {
-                unset($_actions[$key]);
+        try {
+            $response = $this->action($action)->execute($arguments);
+            if ($response instanceof Response) {
+                return $response;
             }
+        } catch (Exception $e) {
+            if (isset($e->response)) {
+                return $e->response;
+            }
+            throw $e;
         }
-        $this->config('actions', $_actions, false);
+
+        return $this->_controller->response = $this->_controller->render(null);
+
+        // @todo return view stuff
     }
 
     /**
-     * actionIsset
+     * Load an Api action instance
      *
-     * Checks if a specific action is enabled.
-     *
-     * @param string $action Action to check for.
-     * @return bool
+     * @param string $name Api action name
      */
-    public function actionIsset($action)
+    protected function _loadAction($name)
     {
-        $actions = $this->config('actions');
-        if (in_array($action, $actions)) {
-            return true;
-        }
-        return false;
-    }
+        if (!isset($this->_actions[$name])) {
+            $config = $this->config('actions.' . $name);
 
-    public function setStatusCode($code)
-    {
-        $controller = $this->Controller;
-        $controller->response->statusCode($code);
+            $className = App::classname($config, 'Action', 'Action');
+
+            if (!$className) {
+                throw new Exception('Api Action not found');
+            }
+
+            $this->_actions[$name] = new $className($this->_controller);
+        }
+
+        return $this->_actions[$name];
     }
 
     /**
-     * serialize
+     * Triggers an event.
      *
-     * Method to add params that should be serialized.
+     * @param \Cake\Event\Event $event Event
+     * @param mixed $subject
+     * @return \Cake\Event\Event
+     */
+    public function trigger($event, $subject)
+    {
+        $Subject = $subject ?: $this->getSubject();
+        $Subject->addEvent($event);
+
+        $Event = new Event($event, $Subject);
+        $this->_eventManager->dispatch($Event);
+
+        if ($Event->result instanceof Response) {
+            $Exception = new Exception();
+            $Exception->response = $Event->result;
+            throw $Exception;
+        }
+
+        return $Event;
+    }
+
+    /**
+     * Attaches an eventlistener on the eventmanager.
      *
-     * ### Example
-     *
-     * // single param
-     *      $this->ApiBuilder->serialize('data3');
-     * // multiple params
-     *      $this->ApiBuilder->serialize(['data1', 'data2']);
-     *
-     * This example will serialize `data1`, `data2`, `data3` if set.
-     *
-     * @param array|string $data Strings to serialize.
+     * @param string|array $events Events
+     * @param callback $callback Callable method to be executed.
+     * @param array $options Options for the event.
      * @return void
      */
-    public function serialize($data)
+    public function on($events, $callback, $options = [])
     {
-        $data = (array)$data;
-
-        $_data = $this->config('_serialize');
-
-        $data = array_merge($_data, $data);
-
-        $this->config('_serialize', $data, false);
+        foreach ((array)$events as $event) {
+            $this->_eventManager->on($event, $options, $callback);
+        }
     }
 
     /**
-     * _viewVarExists
+     * Get a registered eventlistener.
      *
-     * Small helper to check if a view variable is set.
-     *
-     * @param string $variable Variable name.
-     * @return bool
+     * @param string $name Listener
      */
-    protected function _viewVarExists($variable)
+    public function listener($name)
     {
-        return key_exists($variable, $this->Controller->viewVars);
+        return $this->_loadListener($name);
     }
 
-    /**
-     * findAll
-     *
-     * Method to query a list (for the index-action). This method will
-     * do a `where` on the used resources.
-     *
-     * ### Options
-     *
-     * - resources - True if resources should be taken in the queries. (So putting a where on the value)
-     * - toArray - If this method should return an array or the Query object
-     *
-     * @param array $options Options to pass thru.
-     * @return \Cake\ORM\Query|array
-     */
-    public function findAll($options = [])
+    public function addListener($name, $className = null, $config = [])
     {
-        $_options = [
-            'resources' => true,
-            'toArray' => true
-        ];
-
-        $options = array_merge($_options, $options);
-
-        $modelName = $this->config('modelName');
-        $model = \Cake\ORM\TableRegistry::get($modelName);
-
-        $query = $model->find('all');
-
-        if ($options['resources']) {
-            foreach ($this->config('resources') as $resource => $field) {
-                $key = $modelName . '.' . $field;
-                $value = $this->Controller->request->params[$field];
-
-                $query->where([$key => $value]);
-            }
+        if (strpos($name, '.') !== false) {
+            list($plugin, $name) = pluginSplit($name);
+            $className = $plugin . '.' . Inflector::camelize($name);
         }
-
-        if ($options['toArray']) {
-            return $query->toArray();
-        }
-
-        return $query;
-    }
-
-    /**
-     * findSingle
-     *
-     * Method to query a single item (for the view-action). This method will
-     * do a `where` on the used resources.
-     *
-     * @param int $id Id of the item.
-     * @param array $options Options to pass thru.
-     * @return \Cake\ORM\Query
-     */
-    public function findSingle($id, $options = [])
-    {
-        $_options = [
-            'resources' => true,
-            'toArray' => true
-        ];
-
-        $options = array_merge($_options, $options);
-        $exists = [];
-
-        $modelName = $this->config('modelName');
-        $model = \Cake\ORM\TableRegistry::get($modelName);
-
-        $pk = $modelName . '.id';
-        $query = $model->find('all')->where([$pk => $id]);
-        $exists[$pk] = $id;
-
-        if ($options['resources']) {
-            foreach ($this->config('resources') as $resource => $field) {
-                $key = $modelName . '.' . $field;
-                $value = $this->Controller->request->params[$field];
-
-                $query->where([$key => $value]);
-                $exists[$key] = $value;
-            }
-        }
-
-        if ($options['toArray']) {
-            return $query->firstOrFail()->toArray();
-        }
-
-        return $query;
-    }
-
-    /**
-     * getModel
-     *
-     * Returns the used model.
-     *
-     * @return Model
-     */
-    public function getModel()
-    {
-        $modelName = $this->config('modelName');
-        $model = \Cake\ORM\TableRegistry::get($modelName);
-
-        if ($model) {
-            return $model;
-        }
-        return false;
+        $name = Inflector::variable($name);
+        $this->config(sprintf('listeners.%s', $name), compact('className') + $config);
     }
 
 }
