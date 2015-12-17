@@ -23,6 +23,14 @@ trait ApiControllerTrait
 {
 
     /**
+     * List of components that are capable of dispatching an action that is
+     * not already implemented
+     *
+     * @var array
+     */
+    public $dispatchComponents = [];
+
+    /**
      * Dispatches the controller action. Checks that the action exists and isn't private.
      *
      * @return mixed The resulting response.
@@ -49,9 +57,9 @@ trait ApiControllerTrait
         }
 
         // Adding our own stuff to generate the action
-        $execute = $this->ApiBuilder->execute($request->params['action']);
-        if ($execute !== false) {
-            return $execute;
+        $component = $this->_isActionMapped();
+        if ($component) {
+            return $component->execute();
         }
 
         throw new MissingActionException([
@@ -77,10 +85,42 @@ trait ApiControllerTrait
             return true;
         }
 
-        if ($this->ApiBuilder->actionIsset($action)) {
+        if ($this->ApiBuilder->enabled($action)) {
             return true;
         }
 
+        return false;
+    }
+
+    /**
+     * Check if an action can be dispatched using CRUD.
+     *
+     * @return bool|\Cake\Controller\Component The component instance if action is
+     *  mapped else `false`.
+     */
+    protected function _isActionMapped()
+    {
+        if (!empty($this->dispatchComponents)) {
+            foreach ($this->dispatchComponents as $component => $enabled) {
+                if (empty($enabled)) {
+                    continue;
+                }
+                // Skip if isActionMapped isn't defined in the Component
+                if (!method_exists($this->{$component}, 'isActionMapped')) {
+                    continue;
+                }
+                // Skip if the action isn't mapped
+                if (!$this->{$component}->isActionMapped()) {
+                    continue;
+                }
+                // Skip if execute isn't defined in the Component
+                if (!method_exists($this->{$component}, 'execute')) {
+                    continue;
+                }
+                // Return the component instance.
+                return $this->{$component};
+            }
+        }
         return false;
     }
 }
