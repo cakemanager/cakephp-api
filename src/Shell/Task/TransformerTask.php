@@ -3,6 +3,8 @@ namespace Api\Shell\Task;
 
 use Bake\Shell\Task\SimpleBakeTask;
 use Cake\Core\App;
+use Cake\Database\Schema\Table;
+use Cake\ORM\TableRegistry;
 use Cake\Utility\Inflector;
 
 class TransformerTask extends SimpleBakeTask
@@ -26,9 +28,17 @@ class TransformerTask extends SimpleBakeTask
 
     public function bake($name)
     {
-        $this->BakeTemplate->set('entityVariable', Inflector::variable($name));
-        $this->BakeTemplate->set('entityClass', Inflector::classify($name));
-        $this->BakeTemplate->set('entityNamespace', App::className($name, 'Model/Entity'));
+        $entityVariable = Inflector::variable($name);
+        $entityClass = Inflector::classify($name);
+        $entityNamespace = App::className($name, 'Model/Entity');
+
+        $table = TableRegistry::get(Inflector::pluralize($name));
+        $columns = $table->schema()->columns();
+
+        $this->BakeTemplate->set('entityVariable', $entityVariable);
+        $this->BakeTemplate->set('entityClass', $entityClass);
+        $this->BakeTemplate->set('entityNamespace', $entityNamespace);
+        $this->BakeTemplate->set('columns', $columns);
 
 //        debug($name);
 //        debug($this->BakeTemplate->viewVars);
