@@ -3,6 +3,7 @@
 namespace Api\Action;
 
 use Cake\Controller\Controller;
+use Cake\Core\App;
 use Cake\Core\Exception\Exception;
 use Cake\Core\InstanceConfigTrait;
 
