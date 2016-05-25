@@ -1,4 +1,8 @@
-# Api plugin for CakePHP
+# [DEPRECATED] Api plugin for CakePHP
+
+> WARNING: THIS PLUGIN IS DEPRECATED.
+
+> USE https://github.com/cakeplugins/api INSTEAD.
 
 This plugin allows you to easily create flexible restful api's on the fly.
 
